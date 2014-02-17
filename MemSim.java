@@ -56,8 +56,8 @@ public class MemSim {
 	}
 	
 	private static void findByte(PageAndFrameNumber pageAndFrame, int offset) {
-		MemBlock memBlock = memory[pageAndFrame.getFrameNum()]; 
-		System.out.println("(" + Integer.toHexString((memBlock.getData()[offset])) + ")");
+		MemBlock memBlock = memory[pageAndFrame.getFrameNum() % numFrames]; 
+		System.out.println("(" + (char)memBlock.getData()[offset] + ")");
 		
 	}
 
@@ -87,7 +87,7 @@ public class MemSim {
 		   byte[] character = new byte[256];
 		   binaryFile.read(character);
 		   
-		   MemBlock memBlock = new MemBlock(page, character);
+		   MemBlock memBlock = new MemBlock(page, character, index);
 		   
 		   memory[index] = memBlock;
 		   modifiedMemory.add(memBlock);
@@ -106,23 +106,31 @@ public class MemSim {
 
 	private static void makeNewTLBNode(int page, int frame) {
 		   
-		   if(LOGGER) {
-		      System.out.printf("===== MAKE TLB =====\n");
-		   }
+	   if(LOGGER) {
+	      System.out.printf("===== MAKE TLB =====\n");
+	   }
 
-		   PageAndFrameNumber pageFrame = new PageAndFrameNumber(page, frame);
-		   tlb.add(pageFrame);		
+	   PageAndFrameNumber pageFrame = new PageAndFrameNumber(page, frame);
+	   tlb.add(pageFrame);		
 	}
 
-	static void removeMemBlock() {  
-	   memory[index] = null;
+	static void removeMemBlock() { 
+		MemBlock block = memory[index];
+		
+		index = index % numFrames;
+	    memory[index] = null;
+	    memorySize--;
 	}
 	
 	private static void removeFromTLB(int pageNum) {
+		int indedToRemove = 0;
 		for (int i = 0; i < tlb.size(); i++) {
-			if (tlb.get(i).getPageNum() == pageNum)
-				tlb.remove(i);
+			if (tlb.get(i).getPageNum() == pageNum) {
+				indedToRemove = i;
+				break;
 			}
+		}
+		tlb.remove(indedToRemove);
 	}
 	
 	private static void updateFrameNumInTLB(int pageNum, int frameNum) {
@@ -143,6 +151,15 @@ public class MemSim {
 			if (paf.getPageNum() == pageNum) {
 				paf.setFrameNum(frameNum);
 				paf.setLoadedBit(true);
+			}
+		}
+	}
+	
+	private static void setLoadedBitFalseAndFrame(int pageNum, int frameNum) {
+		for (PageAndFrameNumber paf: pageTable) {
+			if (paf.getPageNum() == pageNum) {
+				paf.setFrameNum(frameNum);
+				paf.setLoadedBit(false);
 			}
 		}
 	}
@@ -236,7 +253,7 @@ public class MemSim {
 				else {
 					pageMisses--;
 					loadFrame(page);
-					index = index++ % numFrames;
+					index++;
 				}
 				
 				for(PageAndFrameNumber pageAndFrame : pageTable) {
@@ -274,11 +291,13 @@ public class MemSim {
 	               removeFromTLB(page);
 	            }
 	            if(memorySize == numFrames) {
-	               removeMemBlock();
+	            	removeFromTLB(memory[index].pageNum);
+	                removeMemBlock();
 	            }
 	            
 	            loadFrame(page);
 	            memorySize++;
+	            index = (index + 1) % numFrames;
 	         }
 	         else {
 	            pageHits++;
