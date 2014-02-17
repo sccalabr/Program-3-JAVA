@@ -1,4 +1,3 @@
-
 public class PageAndFrameNumber {
 
 	int pageNum = 0;
@@ -25,6 +24,14 @@ public class PageAndFrameNumber {
 
 	public void setFrameNum(int frameNum) {
 		this.frameNum = frameNum;
+	}
+	
+	public boolean getLoadedBit() {
+		return loadedBit;
+	}
+	
+	public void setLoadedBit(boolean loadedBit) {
+		this.loadedBit = loadedBit;
 	}
 
 }
