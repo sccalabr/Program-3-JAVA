@@ -16,7 +16,9 @@ public class MemSim {
 	private static boolean LOGGER = false;
 	public static ArrayList<PageAndFrameNumber> tlb = new ArrayList<PageAndFrameNumber>();
 	public static ArrayList<PageAndFrameNumber> pageTable = new ArrayList<PageAndFrameNumber>();
+	public static ArrayList<MemBlock> modifiedMemory = new ArrayList<MemBlock>();
 	public static MemBlock[] memory;
+	public static int memorySize = 0;
 	public static int tlbMisses = 0;
 	public static int tlbHits = 0;
 	public static int pageMisses = 0;
@@ -53,44 +55,9 @@ public class MemSim {
 
 	}
 	
-	public static void noReplacement() throws IOException {
-		
-		while(scanner.hasNext()) {
-			virtualAddress = scanner.nextInt();
-			int offset = virtualAddress & offSetMask;
-			int page = virtualAddress & pageNumber;
-			
-			if(checkIfInTLB()) {
-				tlbHits++;
-				
-				for(PageAndFrameNumber pageAndFrame : tlb) {
-					if(pageAndFrame.pageNum == page) {
-						findByte(pageAndFrame, offset);	
-					}
-				}
-				
-			}
-			else {
-				if (checkIfInPageTable()) {
-					tlbMisses++;
-					pageHits++;
-				}
-				else {
-					pageMisses--;
-					loadFrame(page);
-					index = index++ % numFrames;
-				}
-				
-				for(PageAndFrameNumber pageAndFrame : pageTable) {
-					findByte(pageAndFrame, offset);
-				}
-			}
-		}
-	}
-	
 	private static void findByte(PageAndFrameNumber pageAndFrame, int offset) {
 		MemBlock memBlock = memory[pageAndFrame.getFrameNum()]; 
-		System.out.println(memBlock.getData()[offset]);
+		System.out.println("(" + Integer.toHexString((memBlock.getData()[offset])) + ")");
 		
 	}
 
@@ -103,7 +70,7 @@ public class MemSim {
 		      makeNewPageTableNode(page, index);
 		   }
 
-		   if(memory.length < numFrames) {
+		   if(memorySize < numFrames) {
 		      makeNewMemBlock(page, index);
 		   }
 	}
@@ -123,6 +90,7 @@ public class MemSim {
 		   MemBlock memBlock = new MemBlock(page, character);
 		   
 		   memory[index] = memBlock;
+		   modifiedMemory.add(memBlock);
 		   binaryFile.close();
 	}
 
@@ -143,11 +111,78 @@ public class MemSim {
 		   }
 
 		   PageAndFrameNumber pageFrame = new PageAndFrameNumber(page, frame);
-		   pageTable.add(pageFrame);		
+		   tlb.add(pageFrame);		
 	}
 
-	void removeMemBlock() {  
+	static void removeMemBlock() {  
 	   memory[index] = null;
+	}
+	
+	private static void removeFromTLB(int pageNum) {
+		for (int i = 0; i < tlb.size(); i++) {
+			if (tlb.get(i).getPageNum() == pageNum)
+				tlb.remove(i);
+			}
+	}
+	
+	private static void updateFrameNumInTLB(int pageNum, int frameNum) {
+		for (PageAndFrameNumber paf: tlb) {
+			if (paf.getPageNum() == pageNum)
+				paf.setFrameNum(frameNum);
+		}
+	}
+
+	private static void updateFrameNumInPageTable(int pageNum, int frameNum) {
+		for (PageAndFrameNumber paf: pageTable) {
+			if (paf.getPageNum() == pageNum)
+				paf.setFrameNum(frameNum);	
+		}
+	}
+	private static void setLoadedBitTrueAndFrame(int pageNum, int frameNum) {
+		for (PageAndFrameNumber paf: pageTable) {
+			if (paf.getPageNum() == pageNum) {
+				paf.setFrameNum(frameNum);
+				paf.setLoadedBit(true);
+			}
+		}
+	}
+	
+	private static int getFrameNumFromTLB(int pageNum) {
+	for (PageAndFrameNumber paf: tlb) {
+		if (paf.getPageNum() == pageNum)
+			return paf.getFrameNum();
+	}
+
+		System.out.println("ERROR: getFrameNumFromTLB, tlb missing pageNum");
+		return -1;
+	}
+	
+	private static boolean checkLoadedBitInPageTable(int pageNum) {
+		
+		for (PageAndFrameNumber paf : pageTable ) {
+			if (paf.getPageNum() == pageNum) {
+				return paf.getLoadedBit();
+			}
+		}
+		
+		return false;
+	}
+	
+
+	private static int getFrameNumFromPageTable(int pageNum) {
+		for (PageAndFrameNumber paf: pageTable) {
+			if (paf.getPageNum() == pageNum)
+				return paf.getFrameNum();
+			}
+		
+		System.out.println("ERROR: getFrameNumFromPageTable, pageTable missing pageNum");
+		return -1;
+	}
+		
+
+	private static void replacePageAndFrameInTLB(int pageNum, int frameNum) {
+		tlb.remove(0);
+		tlb.add(new PageAndFrameNumber(pageNum, frameNum));
 	}
 	
 	private static boolean checkIfInTLB(int pageNum) {
@@ -175,80 +210,93 @@ public class MemSim {
 		
 		return false;
 	}
-	
-	private static boolean checkLoadedBitInPageTable(int pageNum) {
-		
-		for (PageAndFrameNumber paf : pageTable ) {
-			if (paf.getPageNum() == pageNum) {
-				return paf.getLoadedBit();
-			}
-		}
-		
-		return false;
-	}
-	
-	private static int getFrameNumFromTLB(int pageNum) {
-		for (PageAndFrameNumber paf: tlb) {
-			if (paf.getPageNum() == pageNum)
-				return paf.getFrameNum();
-		}
-		
-		System.out.println("ERROR: getFrameNumFromTLB, tlb missing pageNum");
-		return -1;
-	}
-	
-	private static int getFrameNumFromPageTable(int pageNum) {
-		for (PageAndFrameNumber paf: pageTable) {
-			if (paf.getPageNum() == pageNum)
-				return paf.getFrameNum();
-		}
-		
-		System.out.println("ERROR: getFrameNumFromPageTable, pageTable missing pageNum");
-		return -1;
-	}
-	
-	private static void updateFrameNumInTLB(int pageNum, int frameNum) {
-		for (PageAndFrameNumber paf: tlb) {
-			if (paf.getPageNum() == pageNum)
-				paf.setFrameNum(frameNum);
-		}
-	}
-	
-	private static void updateFrameNumInPageTable(int pageNum, int frameNum) {
-		for (PageAndFrameNumber paf: pageTable) {
-			if (paf.getPageNum() == pageNum)
-				paf.setFrameNum(frameNum);
-		}
-	}
-	
-	private static void setLoadedBitTrueAndFrame(int pageNum, int frameNum) {
-		for (PageAndFrameNumber paf: pageTable) {
-			if (paf.getPageNum() == pageNum) {
-				paf.setFrameNum(frameNum);
-				paf.setLoadedBit(true);
-			}
-		}
-	}
-	
-	private static void addPageAndFrameNumberInTLB(int pageNum, int frameNum) {
-		tlb.add(new PageAndFrameNumber(pageNum, frameNum));
-	}
-	
-	private static void replacePageAndFrameInTLB(int pageNum, int frameNum) {
-		tlb.remove(0);
-		tlb.add(new PageAndFrameNumber(pageNum, frameNum));
-	}
-	
-	private static void removeFromTLB(int pageNum) {
-		for (int i = 0; i < tlb.size(); i++) {
-			if (tlb.get(i).getPageNum() == pageNum)
-				tlb.remove(i);
-		}
-	}
 
-	public static void fifoReplacemnt() {
+	public static void noReplacement() throws IOException {
+		
 		while(scanner.hasNext()) {
+			virtualAddress = scanner.nextInt();
+			int offset = virtualAddress & offSetMask;
+			int page = virtualAddress & pageNumber;
 			
+			if(checkIfInTLB(page)) {
+				tlbHits++;
+				
+				for(PageAndFrameNumber pageAndFrame : tlb) {
+					if(pageAndFrame.pageNum == page) {
+						findByte(pageAndFrame, offset);	
+					}
+				}
+				
+			}
+			else {
+				if (checkIfInPageTable(page)) {
+					tlbMisses++;
+					pageHits++;
+				}
+				else {
+					pageMisses--;
+					loadFrame(page);
+					index = index++ % numFrames;
+				}
+				
+				for(PageAndFrameNumber pageAndFrame : pageTable) {
+					if(pageAndFrame.pageNum == page) {
+						findByte(pageAndFrame, offset);	
+					}
+				}
+			}
+		}
+	}
+	
+	public static void fifoReplacemnt() throws IOException {
+		while(scanner.hasNext()) {
+			//System.out.println(scanner.nextInt());
+			
+			virtualAddress = scanner.nextInt();
+			int offset = virtualAddress & offSetMask;
+			int page = virtualAddress & pageNumber;
+		      
+	      if(checkIfInTLB(page)) {
+	         tlbHits++;
+
+			for(PageAndFrameNumber pageAndFrame : tlb) {
+				if(pageAndFrame.pageNum == page) {
+					findByte(pageAndFrame, offset);	
+				}
+			}
+	      }
+	      else {
+	         tlbMisses++;
+	         
+	         if(!checkIfInPageTable(page)) {
+	            pageMisses++;
+	            if(tlb.size() == 16) {
+	               removeFromTLB(page);
+	            }
+	            if(memorySize == numFrames) {
+	               removeMemBlock();
+	            }
+	            
+	            loadFrame(page);
+	            memorySize++;
+	         }
+	         else {
+	            pageHits++;
+	            
+	            if(tlb.size() == 16) {
+	               removeFromTLB(page);
+	            }
+	            makeNewTLBNode(page, index);
+
+	         }
+	         
+	         for(PageAndFrameNumber pageAndFrame : pageTable) {
+				if(pageAndFrame.pageNum == page) {
+					System.out.print(page/256 +  "offset: " + offset + ": ");
+					findByte(pageAndFrame, offset);	
+				}
+	         }
+	      }
 		}
 	}
 	
