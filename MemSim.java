@@ -150,14 +150,100 @@ public class MemSim {
 	   memory[index] = null;
 	}
 	
-	private static boolean checkIfInPageTable() {
-		// TODO Auto-generated method stub
+	private static boolean checkIfInTLB(int pageNum) {
+		if(LOGGER) {
+		      System.out.println("===== CHECK TLB =====");
+		   }
+		   
+		for (PageAndFrameNumber paf : tlb) {
+			if (paf.getPageNum() == pageNum)
+				return true;
+		}
+	
 		return false;
 	}
-
-	private static boolean checkIfInTLB() {
-
-		return true;
+	
+	private static boolean checkIfInPageTable(int pageNum) {
+		if (LOGGER) {
+			System.out.println("===== CHECK PAGETABLE =====");
+		}
+		
+		for (PageAndFrameNumber paf : pageTable ) {
+			if (paf.getPageNum() == pageNum)
+				return true;
+		}
+		
+		return false;
+	}
+	
+	private static boolean checkLoadedBitInPageTable(int pageNum) {
+		
+		for (PageAndFrameNumber paf : pageTable ) {
+			if (paf.getPageNum() == pageNum) {
+				return paf.getLoadedBit();
+			}
+		}
+		
+		return false;
+	}
+	
+	private static int getFrameNumFromTLB(int pageNum) {
+		for (PageAndFrameNumber paf: tlb) {
+			if (paf.getPageNum() == pageNum)
+				return paf.getFrameNum();
+		}
+		
+		System.out.println("ERROR: getFrameNumFromTLB, tlb missing pageNum");
+		return -1;
+	}
+	
+	private static int getFrameNumFromPageTable(int pageNum) {
+		for (PageAndFrameNumber paf: pageTable) {
+			if (paf.getPageNum() == pageNum)
+				return paf.getFrameNum();
+		}
+		
+		System.out.println("ERROR: getFrameNumFromPageTable, pageTable missing pageNum");
+		return -1;
+	}
+	
+	private static void updateFrameNumInTLB(int pageNum, int frameNum) {
+		for (PageAndFrameNumber paf: tlb) {
+			if (paf.getPageNum() == pageNum)
+				paf.setFrameNum(frameNum);
+		}
+	}
+	
+	private static void updateFrameNumInPageTable(int pageNum, int frameNum) {
+		for (PageAndFrameNumber paf: pageTable) {
+			if (paf.getPageNum() == pageNum)
+				paf.setFrameNum(frameNum);
+		}
+	}
+	
+	private static void setLoadedBitTrueAndFrame(int pageNum, int frameNum) {
+		for (PageAndFrameNumber paf: pageTable) {
+			if (paf.getPageNum() == pageNum) {
+				paf.setFrameNum(frameNum);
+				paf.setLoadedBit(true);
+			}
+		}
+	}
+	
+	private static void addPageAndFrameNumberInTLB(int pageNum, int frameNum) {
+		tlb.add(new PageAndFrameNumber(pageNum, frameNum));
+	}
+	
+	private static void replacePageAndFrameInTLB(int pageNum, int frameNum) {
+		tlb.remove(0);
+		tlb.add(new PageAndFrameNumber(pageNum, frameNum));
+	}
+	
+	private static void removeFromTLB(int pageNum) {
+		for (int i = 0; i < tlb.size(); i++) {
+			if (tlb.get(i).getPageNum() == pageNum)
+				tlb.remove(i);
+		}
 	}
 
 	public static void fifoReplacemnt() {
