@@ -3,6 +3,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Scanner;
 
 
@@ -24,6 +25,7 @@ public class MemSim {
 	public static int pageMisses = 0;
 	public static int pageHits = 0;
 	public static int index = 0;
+	public static HashMap<Integer, Boolean> pageToLoadedBit = new HashMap<Integer, Boolean>();
 	
 	public static void main(String[] args) throws IOException {
 		try {
@@ -67,7 +69,13 @@ public class MemSim {
 		   }
 		   
 		   if(pageTable.size() < 256) {
-		      makeNewPageTableNode(page, index);
+			   Boolean isLoaded = pageToLoadedBit.get(page);
+			   if(isLoaded != null && !isLoaded) {
+				   setLoadedBitTrueAndFrame(page, index);
+			   }
+			   else {
+				   makeNewPageTableNode(page, index);
+			   }
 		   }
 
 		   if(memorySize < numFrames) {
@@ -101,6 +109,7 @@ public class MemSim {
 
 			   PageAndFrameNumber pageFrame = new PageAndFrameNumber(page, frame);
 			   pageTable.add(pageFrame);
+			   pageToLoadedBit.put(page, true);
 		
 	}
 
@@ -116,7 +125,8 @@ public class MemSim {
 
 	static void removeMemBlock() { 
 		MemBlock block = memory[index];
-		
+		pageToLoadedBit.put(block.pageNum, false);
+		setLoadedBitFalseAndFrame(block.pageNum, block.frameNum);
 		index = index % numFrames;
 	    memory[index] = null;
 	    memorySize--;
@@ -158,7 +168,7 @@ public class MemSim {
 	private static void setLoadedBitFalseAndFrame(int pageNum, int frameNum) {
 		for (PageAndFrameNumber paf: pageTable) {
 			if (paf.getPageNum() == pageNum) {
-				paf.setFrameNum(frameNum);
+//				paf.setFrameNum(frameNum);
 				paf.setLoadedBit(false);
 			}
 		}
@@ -215,14 +225,15 @@ public class MemSim {
 		return false;
 	}
 	
-	private static boolean checkIfInPageTable(int pageNum) {
+	private static boolean checkIfInPageTableAndLoadedIntoMemory(int pageNum) {
 		if (LOGGER) {
 			System.out.println("===== CHECK PAGETABLE =====");
 		}
 		
 		for (PageAndFrameNumber paf : pageTable ) {
-			if (paf.getPageNum() == pageNum)
+			if (paf.getPageNum() == pageNum && paf.getLoadedBit()) {
 				return true;
+			}
 		}
 		
 		return false;
@@ -246,7 +257,7 @@ public class MemSim {
 				
 			}
 			else {
-				if (checkIfInPageTable(page)) {
+				if (checkIfInPageTableAndLoadedIntoMemory(page)) {
 					tlbMisses++;
 					pageHits++;
 				}
@@ -285,7 +296,7 @@ public class MemSim {
 	      else {
 	         tlbMisses++;
 	         
-	         if(!checkIfInPageTable(page)) {
+	         if(!checkIfInPageTableAndLoadedIntoMemory(page)) {
 	            pageMisses++;
 	            if(tlb.size() == 16) {
 	               removeFromTLB(page);
