@@ -58,7 +58,7 @@ public class MemSim {
 	}
 	
 	private static void findByte(PageAndFrameNumber pageAndFrame, int offset) {
-		MemBlock memBlock = memory[pageAndFrame.getFrameNum() % numFrames]; 
+		MemBlock memBlock = memory[pageAndFrame.getFrameNum() % numFrames];
 		System.out.println("(" + (char)memBlock.getData()[offset] + ")");
 		
 	}
@@ -81,6 +81,32 @@ public class MemSim {
 		   if(memorySize < numFrames) {
 		      makeNewMemBlock(page, index);
 		   }
+		   else {
+			   System.out.println("ERRORRRRR MEMSIZE FILLED");
+		   }
+	}
+	
+	private static void lruLoadFrame(int page, int frame) throws IOException {
+		if (tlb.size() < 16)  {
+			makeNewTLBNode(page, frame);
+		}
+		
+		if(pageTable.size() < 256) {
+			Boolean isLoaded = pageToLoadedBit.get(page);
+			if(isLoaded != null && !isLoaded) {
+			   setLoadedBitTrueAndFrame(page, frame);
+			}
+			else {
+			   makeNewPageTableNode(page, frame);
+			}
+		}
+		
+		if (memorySize < numFrames) {
+			makeNewMemBlock(page, frame);
+		}
+		else {
+			System.out.println("Error memorysize filled");
+		}
 	}
 
 	private static void makeNewMemBlock(int page, int frame) throws IOException {
@@ -123,13 +149,21 @@ public class MemSim {
 	   tlb.add(pageFrame);		
 	}
 
-	static void removeMemBlock() { 
+	static void removeMemBlock() {
 		MemBlock block = memory[index];
 		pageToLoadedBit.put(block.pageNum, false);
 		setLoadedBitFalseAndFrame(block.pageNum, block.frameNum);
 		index = index % numFrames;
 	    memory[index] = null;
 	    memorySize--;
+	}
+	
+	static void lruRemoveMemBlock(int frame) {
+		MemBlock block = memory[frame];
+		pageToLoadedBit.put(block.pageNum , false);
+		setLoadedBitFalseAndFrame(block.pageNum, block.frameNum);
+		memory[index] = null;
+		memorySize--;
 	}
 	
 	private static void removeFromTLB(int pageNum) {
@@ -301,9 +335,9 @@ public class MemSim {
 	            if(tlb.size() == 16) {
 	               removeFromTLB(page);
 	            }
-	            if(memorySize == numFrames) {
-	            	removeFromTLB(memory[index].pageNum);
-	                removeMemBlock();
+	            removeFromTLB(memory[index].pageNum);
+	                if(memorySize == numFrames) {
+	            	removeMemBlock();
 	            }
 	            
 	            loadFrame(page);
@@ -330,14 +364,119 @@ public class MemSim {
 		}
 	}
 	
-	public static void lruReplacement() {
+	public static void optReplacement() {
 		while(scanner.hasNext()) {
+			
 			
 		}
 	}
 	
-	public static void optReplacement() {
+	public static void lruMoveTlbPageAndFrame(int page) {
+		PageAndFrameNumber temp = null;
+		
+		for(PageAndFrameNumber pageAndFrame : tlb) {
+			if(pageAndFrame.pageNum == page) {
+				temp = pageAndFrame;
+				break;
+			}
+		}
+		
+		tlb.remove(temp);
+		tlb.add(temp);
+		
+	}
+
+	public static void lruMoveModifyMemory(int page) {
+		MemBlock temp = null;
+		
+		for(MemBlock memBlock : modifiedMemory) {
+			if(memBlock.pageNum == page) {
+				temp = memBlock;
+				break;
+			}
+		}
+		if (temp != null) {
+			modifiedMemory.remove(temp);
+			modifiedMemory.add(temp);
+		}
+	}
+	
+	public static int lruPopFrameFromModifyMemory() {
+		int frame = modifiedMemory.get(0).frameNum;
+		modifiedMemory.remove(0);
+		return frame;
+	}
+	
+	public static void lruAddToModifyMemory(MemBlock m) {
+		modifiedMemory.add(m);
+	}
+	
+	public static void lruReplacement() throws IOException {
 		while(scanner.hasNext()) {
+			//System.out.println(scanner.nextInt());
+			
+			virtualAddress = scanner.nextInt();
+			int offset = virtualAddress & offSetMask;
+			int page = virtualAddress & pageNumber;
+		      
+	      if(checkIfInTLB(page)) {
+	         tlbHits++;
+
+			for(PageAndFrameNumber pageAndFrame : tlb) {
+				if(pageAndFrame.pageNum == page) {
+					findByte(pageAndFrame, offset);	
+				}
+			}
+			lruMoveTlbPageAndFrame(page);
+			lruMoveModifyMemory(page);
+	      }
+	      else {
+	         tlbMisses++;
+	         
+	         int f = -1;
+	         
+	         if(!checkIfInPageTableAndLoadedIntoMemory(page)) {
+	            pageMisses++;
+	            if(tlb.size() == 16) {
+	               removeFromTLB(0);
+	               // possibly remove at index 0 for tlb
+	            }
+	            if(memorySize == numFrames) {
+	            	lruMoveModifyMemory(page); // modifies mem to prepare for pop
+	            	f = lruPopFrameFromModifyMemory(); // pops
+	            	removeFromTLB(memory[f].pageNum); // DONE: replace index with popped page val
+	                lruRemoveMemBlock(f); // i wrote this function, check it
+	            }
+	            
+	            if (f == -1) {
+	            	loadFrame(page); // this makes new memblock, new tlb as well
+	            } else {
+	            	lruLoadFrame(page, f);
+	            }
+	            memorySize++;
+	            index = (index + 1) % numFrames; // will this update accurately?
+	         }
+	         else { // how do we handle the loadedBit in this else statement?
+	            pageHits++;
+	            
+	            lruMoveModifyMemory(page); // update modifiedMem because page was used
+	            
+	            if(tlb.size() == 16) {
+	               removeFromTLB(0); // possibly remove at index 0 for tlb
+	            }
+	            
+	            f = getFrameNumFromPageTable(page);
+	            makeNewTLBNode(page, f); // changed index parameter to frame value of page?
+
+	         }
+	         
+	         for(PageAndFrameNumber pageAndFrame : pageTable) {
+				if(pageAndFrame.pageNum == page) {
+					System.out.print(page/256 +  "offset: " + offset + ": ");
+					findByte(pageAndFrame, offset);	
+				}
+	         }
+	      }
 			
 		}
 		
