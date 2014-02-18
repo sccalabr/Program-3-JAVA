@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.TreeSet;
 
 
 public class MemSim {
@@ -25,7 +27,10 @@ public class MemSim {
 	public static int pageMisses = 0;
 	public static int pageHits = 0;
 	public static int index = 0;
+	public static int currentMemoryAddress = 0;
+	public static ArrayList<Integer> memoryAddress = null;
 	public static HashMap<Integer, Boolean> pageToLoadedBit = new HashMap<Integer, Boolean>();
+	public static boolean optFlag = true;
 	
 	public static void main(String[] args) throws IOException {
 		try {
@@ -40,7 +45,7 @@ public class MemSim {
 				fifoReplacemnt();
 			}
 			else if(args[2].equals("lru")) {
-				lruReplacement();
+				//llllruReplacement();
 			}
 			else if(args[2].equals("opt")) {
 				optReplacement();
@@ -59,7 +64,7 @@ public class MemSim {
 	
 	private static void findByte(PageAndFrameNumber pageAndFrame, int offset) {
 		MemBlock memBlock = memory[pageAndFrame.getFrameNum() % numFrames]; 
-		System.out.println("(" + (char)memBlock.getData()[offset] + ")");
+		System.out.println("(" + Integer.toHexString(memBlock.getData()[offset]) + ")");
 		
 	}
 
@@ -128,6 +133,41 @@ public class MemSim {
 		pageToLoadedBit.put(block.pageNum, false);
 		setLoadedBitFalseAndFrame(block.pageNum, block.frameNum);
 		index = index % numFrames;
+	    memory[index] = null;
+	    memorySize--;
+	}
+	
+	static void optRemoveMemBlock() { 
+		ArrayList<Integer> setOfAddress = new ArrayList<Integer>();
+		
+		for(MemBlock memBlock : memory) {
+			setOfAddress.add(memBlock.pageNum);
+		}
+		
+		for(int counter = currentMemoryAddress + 1; counter < memoryAddress.size(); counter++) {
+			if(setOfAddress.size() == 1) {
+				break;
+			}
+			if(setOfAddress.contains(memoryAddress.get(counter) & pageNumber)) {
+				setOfAddress.remove((Object)(memoryAddress.get(counter) & pageNumber));
+			}
+		}
+		
+		int pageToRemove = setOfAddress.get(0);
+		
+		int toRemove = 0;
+		
+		for(int counter = 0; counter < memory.length; counter++) {
+			if(memory[counter].getPageNum() == pageToRemove) {
+				toRemove = counter;
+				break;
+			}
+		}
+		
+		index = toRemove;
+		MemBlock block = memory[index];
+		pageToLoadedBit.put(block.pageNum, false);
+		setLoadedBitFalseAndFrame(block.pageNum, block.frameNum);
 	    memory[index] = null;
 	    memorySize--;
 	}
@@ -330,17 +370,185 @@ public class MemSim {
 		}
 	}
 	
-	public static void lruReplacement() {
+	public static void optReplacement() throws IOException {
+		memoryAddress = new ArrayList<Integer>();
+		
 		while(scanner.hasNext()) {
+			memoryAddress.add(scanner.nextInt());
+		}
+		
+		for(currentMemoryAddress = 0; currentMemoryAddress < memoryAddress.size(); currentMemoryAddress++) {
+			
+			virtualAddress = memoryAddress.get(currentMemoryAddress);
+			int offset = virtualAddress & offSetMask;
+			int page = virtualAddress & pageNumber;
+		      
+	      if(checkIfInTLB(page)) {
+	         tlbHits++;
+
+			for(PageAndFrameNumber pageAndFrame : tlb) {
+				if(pageAndFrame.pageNum == page) {
+					findByte(pageAndFrame, offset);	
+				}
+			}
+	      }
+	      else {
+	         tlbMisses++;
+	         
+	         if(!checkIfInPageTableAndLoadedIntoMemory(page)) {
+	            pageMisses++;
+	            
+	            if(memorySize == numFrames) {
+	            	optRemoveFromTlb();
+	                optRemoveMemBlock();
+	            	optFlag = false;
+	            }	            
+	            else if(tlb.size() == 16) {
+	            	optRemoveFromTlb();
+		        }
+	            
+	            loadFrame(page);
+
+	            if(optFlag) {
+	            	index = (index + 1) % numFrames;
+	            }
+	            
+	            memorySize++;
+	         }
+	         else {
+	            pageHits++;
+	            
+	            if(tlb.size() == 16) {
+	            	optRemoveFromTlb();
+	            }
+	            
+	            makeNewTLBNode(page, getFrameNumFromPageTable(page));
+	         }
+	         
+	         for(PageAndFrameNumber pageAndFrame : pageTable) {
+				if(pageAndFrame.pageNum == page) {
+					System.out.print(page/256 +  "offset: " + offset + ": ");
+					findByte(pageAndFrame, offset);	
+				}
+	         }
+	      }
 			
 		}
 	}
 	
-	public static void optReplacement() {
-		while(scanner.hasNext()) {
-			
+	public static void optRemoveFromTlb() {
+    	ArrayList<Integer> setOfPages = new ArrayList<Integer>();
+    	for(PageAndFrameNumber pageAndFrameNumber : tlb) {
+    		if(!setOfPages.contains(pageAndFrameNumber.getPageNum())) {
+    			setOfPages.add(pageAndFrameNumber.getPageNum());
+    		}
+    	}
+    	
+    	for(int counter = currentMemoryAddress + 1 ; counter < memoryAddress.size(); counter++) {
+    		if(setOfPages.size() == 1) {
+    			break;
+    		}
+    		if(setOfPages.contains(memoryAddress.get(counter) & pageNumber)) {
+    			setOfPages.remove((Object)(memoryAddress.get(counter) & pageNumber));
+    		}
+    	}
+    	int indexToRemove = 0;
+    	for(int counter = 0; counter < tlb.size(); counter++) {
+    		if(tlb.get(counter).pageNum == setOfPages.get(0)) {
+    			indexToRemove = counter;
+    			break;
+    		}
+    	}
+    	
+    	tlb.remove(indexToRemove);
+	}
+/*	
+	public static void lruMoveTlbPageAndFrame(int page) {
+		PageAndFrameNumber temp = null;
+		
+		for(PageAndFrameNumber pageAndFrame : tlb) {
+			if(pageAndFrame.pageNum == page) {
+				temp = pageAndFrame;
+				break;
+			}
 		}
+		
+		tlb.remove(temp);
+		tlb.add(temp);
 		
 	}
 
+	public static void lruMoveModifyMemory(int page) {
+		MemBlock temp = null;
+		
+		for(MemBlock memBlock : modifiedMemory) {
+			if(memBlock.pageNum == page) {
+				temp = memBlock;
+				break;
+			}
+		}
+		modifiedMemory.remove(temp);
+		modifiedMemory.add(temp);
+	}
+	
+	public static void lruReplacement() throws IOException {
+		ArrayList<Integer> memoryAddress = new ArrayList<Integer>();
+		
+		while(scanner.hasNext()) {
+			memoryAddress.add(scanner.nextInt());
+		}
+		while(!memoryAddress.isEmpty())
+//System.out.println(scanner.nextInt());
+			
+			virtualAddress = memoryAddress.get(0);
+			int offset = virtualAddress & offSetMask;
+			int page = virtualAddress & pageNumber;
+		      
+	      if(checkIfInTLB(page)) {
+	         tlbHits++;
+
+			for(PageAndFrameNumber pageAndFrame : tlb) {
+				if(pageAndFrame.pageNum == page) {
+					findByte(pageAndFrame, offset);	
+				}
+			}
+	      }
+	      else {
+	         tlbMisses++;
+	         
+	         if(!checkIfInPageTableAndLoadedIntoMemory(page)) {
+	            pageMisses++;
+	            if(tlb.size() == 16) {
+	               removeFromTLB(page);
+	            }
+	            if(memorySize == numFrames) {
+	            	removeFromTLB(memory[index].pageNum);
+	                removeMemBlock();
+	            }
+
+	            loadFrame(page);
+	            memorySize++;
+	            index = (index + 1) % numFrames;
+	         }
+	         else {
+	            pageHits++;
+	            
+	            if(tlb.size() == 16) {
+	               removeFromTLB(memory[index].pageNum);
+	            }
+	            makeNewTLBNode(page, index);
+
+	         }
+	         
+	         for(PageAndFrameNumber pageAndFrame : pageTable) {
+				if(pageAndFrame.pageNum == page) {
+					System.out.print(page/256 +  "offset: " + offset + ": ");
+					findByte(pageAndFrame, offset);	
+				}
+	         }
+	     }	
+	}
+*/		
 }
+
+
