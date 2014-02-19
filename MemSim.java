@@ -481,5 +481,98 @@ public class MemSim {
 	   }
 		
 	}
+		public static void optReplacement() throws IOException {
+		memoryAddress = new ArrayList<Integer>();
+		
+		while(scanner.hasNext()) {
+			memoryAddress.add(scanner.nextInt());
+		}
+		
+		for(currentMemoryAddress = 0; currentMemoryAddress < memoryAddress.size(); currentMemoryAddress++) {
+			
+			virtualAddress = memoryAddress.get(currentMemoryAddress);
+			int offset = virtualAddress & offSetMask;
+			int page = virtualAddress & pageNumber;
+		      
+	      if(checkIfInTLB(page)) {
+	         tlbHits++;
+
+			for(PageAndFrameNumber pageAndFrame : tlb) {
+				if(pageAndFrame.pageNum == page) {
+					findByte(pageAndFrame, offset);	
+				}
+			}
+	      }
+	      else {
+	         tlbMisses++;
+	         
+	         if(!checkIfInPageTableAndLoadedIntoMemory(page)) {
+	            pageMisses++;
+	            
+	            if(memorySize == numFrames) {
+	            	optRemoveFromTlb();
+	                optRemoveMemBlock();
+	            	optFlag = false;
+	            }	            
+	            else if(tlb.size() == 16) {
+	            	optRemoveFromTlb();
+		        }
+	            
+	            loadFrame(page);
+
+	            if(optFlag) {
+	            	index = (index + 1) % numFrames;
+	            }
+	            
+	            memorySize++;
+	         }
+	         else {
+	            pageHits++;
+	            
+	            if(tlb.size() == 16) {
+	            	optRemoveFromTlb();
+	            }
+	            
+	            makeNewTLBNode(page, getFrameNumFromPageTable(page));
+	         }
+	         
+	         for(PageAndFrameNumber pageAndFrame : pageTable) {
+				if(pageAndFrame.pageNum == page) {
+					System.out.print(page/256 +  "offset: " + offset + ": ");
+					findByte(pageAndFrame, offset);	
+				}
+	         }
+	      }
+			
+		}
+	}
+	
+	public static void optRemoveFromTlb() {
+    	ArrayList<Integer> setOfPages = new ArrayList<Integer>();
+    	for(PageAndFrameNumber pageAndFrameNumber : tlb) {
+    		if(!setOfPages.contains(pageAndFrameNumber.getPageNum())) {
+    			setOfPages.add(pageAndFrameNumber.getPageNum());
+    		}
+    	}
+    	
+    	for(int counter = currentMemoryAddress + 1 ; counter < memoryAddress.size(); counter++) {
+    		if(setOfPages.size() == 1) {
+    			break;
+    		}
+    		if(setOfPages.contains(memoryAddress.get(counter) & pageNumber)) {
+    			setOfPages.remove((Object)(memoryAddress.get(counter) & pageNumber));
+    		}
+    	}
+    	int indexToRemove = 0;
+    	for(int counter = 0; counter < tlb.size(); counter++) {
+    		if(tlb.get(counter).pageNum == setOfPages.get(0)) {
+    			indexToRemove = counter;
+    			break;
+    		}
+    	}
+    	
+    	tlb.remove(indexToRemove);
+	}
+	
 
 }
