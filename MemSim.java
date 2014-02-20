@@ -30,7 +30,8 @@
       public static int currentMemoryAddress = 0;
       public static boolean optFlag = true;
       public static boolean frameDump = false;
-      public static String algo =null;
+      public static String algo = null;
+      public static int numAddress = 0;
    
       public static void main(String[] args) throws IOException {
          try {
@@ -60,13 +61,16 @@
             System.out.println("Should not be here");
             e.printStackTrace();
          }
-         System.out.println("Page Faults: " + pageMisses + " Page Fault Rate: " + pageMisses / (pageHits + pageMisses));
-         System.out.println("TLB Misses: " + tlbMisses + " TLB Miss Rate: " + tlbMisses / (tlbHits + tlbMisses));
+         System.out.println("Number of Translated Addresses = " + numAddress);
+         System.out.println("Page Faults =  " + pageMisses);
+         System.out.println("Page Fault Rate =  " + pageMisses / (pageHits + pageMisses));
+         System.out.println("TLB Hits = " + tlbHits);
+         System.out.println("TLB Hit Rate = " + tlbHits / (tlbHits + tlbMisses));
       }
    
       private static void findByte(PageAndFrameNumber pageAndFrame, int offset) {
          MemBlock memBlock = memory[pageAndFrame.getFrameNum() % numFrames];
-         System.out.print(virtualAddress + ", " + (int)memBlock.getData()[offset] + ", " + (offset + memBlock.getFrameNum() * 256) + ", ");
+         System.out.print(virtualAddress + ", " + (int)memBlock.getData()[offset] + ", " + memBlock.getFrameNum()  + ", ");
          for(int counter = 0; counter < 256; counter++) {
             System.out.print(Integer.toHexString(memBlock.getData()[counter]));
          }
@@ -308,6 +312,7 @@
    
          while(scanner.hasNext()) {
             virtualAddress = scanner.nextInt();
+            numAddress++;
             int offset = virtualAddress & offSetMask;
             int page = virtualAddress & pageNumber;
    
@@ -346,6 +351,7 @@
             //System.out.println(scanner.nextInt());
    
             virtualAddress = scanner.nextInt();
+            numAddress++;
             int offset = virtualAddress & offSetMask;
             int page = virtualAddress & pageNumber;
    
@@ -437,6 +443,7 @@
             //System.out.println(scanner.nextInt());
    
             virtualAddress = scanner.nextInt();
+            numAddress++;
             int offset = virtualAddress & offSetMask;
             int page = virtualAddress & pageNumber;
    
@@ -507,6 +514,7 @@
    
          while(scanner.hasNext()) {
             memoryAddress.add(scanner.nextInt());
+            numAddress++;
          }
    
          for(currentMemoryAddress = 0; currentMemoryAddress < memoryAddress.size(); currentMemoryAddress++) {
