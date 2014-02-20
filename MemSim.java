@@ -20,10 +20,10 @@
       public static ArrayList<MemBlock> modifiedMemory = new ArrayList<MemBlock>();
       public static MemBlock[] memory;
       public static int memorySize = 0;
-      public static int tlbMisses = 0;
-      public static int tlbHits = 0;
-      public static int pageMisses = 0;
-      public static int pageHits = 0;
+      public static double tlbMisses = 0;
+      public static double tlbHits = 0;
+      public static double pageMisses = 0;
+      public static double pageHits = 0;
       public static int index = 0;
       public static HashMap<Integer, Boolean> pageToLoadedBit = new HashMap<Integer, Boolean>();
       public static ArrayList<Integer> memoryAddress = null;
@@ -60,12 +60,17 @@
             System.out.println("Should not be here");
             e.printStackTrace();
          }
-   
+         System.out.println("Page Faults: " + pageMisses + " Page Fault Rate: " + pageMisses / (pageHits + pageMisses));
+         System.out.println("TLB Misses: " + tlbMisses + " TLB Miss Rate: " + tlbMisses / (tlbHits + tlbMisses));
       }
    
       private static void findByte(PageAndFrameNumber pageAndFrame, int offset) {
          MemBlock memBlock = memory[pageAndFrame.getFrameNum() % numFrames];
-         System.out.println(virtualAddress + ", " + (int)memBlock.getData()[offset] + ", " + (offset + memBlock.getFrameNum() * 256));
+         System.out.print(virtualAddress + ", " + (int)memBlock.getData()[offset] + ", " + (offset + memBlock.getFrameNum() * 256) + ", ");
+         for(int counter = 0; counter < 256; counter++) {
+            System.out.print(Integer.toHexString(memBlock.getData()[counter]));
+         }
+         System.out.println();
    
       }
    
