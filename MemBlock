@@ -1,38 +1,43 @@
-
 public class MemBlock {
 
-	public static int pageNum;
-	public static int frameNum;
-	public static byte[] data = new byte[256];
-	
-	public static int getFrameNum() {
-		return frameNum;
-	}
+   public int pageNum;
+   public int frameNum;
+   public byte[] data = new byte[256];
+   
+   public int getFrameNum() {
+      return frameNum;
+   }
 
-	public static void setFrameNum(int frameNum) {
-		MemBlock.frameNum = frameNum;
-	}
+   public void setFrameNum(int frameNume) {
+      frameNum = frameNume;
+   }
 
-	
-	public MemBlock(int pageNum, byte[]data) {
-		this.pageNum = pageNum;
-		this.data = data;
-	}
+   
+   public MemBlock(int pageNum, byte[]data) {
+      this.pageNum = pageNum;
+      this.data = data;
+   }
 
-	public static int getPageNum() {
-		return pageNum;
-	}
+   public MemBlock(int page, byte[] character, int index) {
+      this.pageNum = page;
+      this.data = character;
+      this.frameNum = index;
+   }
 
-	public static void setPageNum(int pageNum) {
-		MemBlock.pageNum = pageNum;
-	}
+   public  int getPageNum() {
+      return pageNum;
+   }
 
-	public static byte[] getData() {
-		return data;
-	}
+   public  void setPageNum(int pageNums) {
+      pageNum = pageNums;
+   }
 
-	public static void setData(byte[] data) {
-		MemBlock.data = data;
-	}
+   public byte[] getData() {
+      return data;
+   }
+
+   public void setData(byte[] datas) {
+       data = datas;
+   }
 
 }
