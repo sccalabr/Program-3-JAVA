@@ -13,9 +13,10 @@ public class MemBlock {
 	}
 
 	
-	public MemBlock(int pageNum, byte[]data) {
+	public MemBlock(int pageNum, byte[]data, int index) {
 		this.pageNum = pageNum;
 		this.data = data;
+		this.frameNum = index;
 	}
 
 	public static int getPageNum() {
