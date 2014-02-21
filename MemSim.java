@@ -497,7 +497,6 @@ import java.util.Scanner;
    
                for(PageAndFrameNumber pageAndFrame : pageTable) {
                   if(pageAndFrame.pageNum == page) {
-                     System.out.print(page/256 +  "offset: " + offset + ": ");
                      findByte(pageAndFrame, offset);	
                   }
                }
@@ -564,7 +563,6 @@ import java.util.Scanner;
    
                for(PageAndFrameNumber pageAndFrame : pageTable) {
                   if(pageAndFrame.pageNum == page) {
-                     System.out.print(page/256 +  "offset: " + offset + ": ");
                      findByte(pageAndFrame, offset);	
                   }
                }
