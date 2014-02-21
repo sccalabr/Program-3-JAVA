@@ -1,10 +1,11 @@
    import java.io.File;
-   import java.io.FileNotFoundException;
-   import java.io.IOException;
-   import java.io.RandomAccessFile;
-   import java.util.ArrayList;
-   import java.util.HashMap;
-   import java.util.Scanner;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Scanner;
    
    
    public class MemSim {
@@ -30,7 +31,7 @@
       public static int currentMemoryAddress = 0;
       public static boolean optFlag = true;
       public static boolean frameDump = false;
-      public static String algo = null;
+      public static String algo = "";
       public static int numAddress = 0;
    
       public static void main(String[] args) throws IOException {
@@ -63,7 +64,7 @@
          }
          System.out.println("Number of Translated Addresses = " + numAddress);
          System.out.println("Page Faults =  " + pageMisses);
-         System.out.println("Page Fault Rate =  " + pageMisses / (pageHits + pageMisses));
+         System.out.println("Page Fault Rate =  " + pageMisses / (numAddress));
          System.out.println("TLB Hits = " + tlbHits);
          System.out.println("TLB Hit Rate = " + tlbHits / (tlbHits + tlbMisses));
       }
@@ -96,13 +97,6 @@
                   index = (index + 1) % numFrames;
                }
             }
-         }
-   
-         if(memorySize < numFrames) {
-            makeNewMemBlock(page, index);
-         }
-         else {
-            System.out.println("ERRORRRRR MEMSIZE FILLED");
          }
       }
    
@@ -311,6 +305,7 @@
       public static void noReplacement() throws IOException {
    
          while(scanner.hasNext()) {
+            checkIfTLBIsCorrect();
             virtualAddress = scanner.nextInt();
             numAddress++;
             int offset = virtualAddress & offSetMask;
@@ -348,6 +343,7 @@
    
       public static void fifoReplacemnt() throws IOException {
          while(scanner.hasNext()) {
+            checkIfTLBIsCorrect();
             //System.out.println(scanner.nextInt());
    
             virtualAddress = scanner.nextInt();
@@ -386,7 +382,8 @@
                   if(tlb.size() == 16) {
                      removeFromTLB(page);
                   }
-                  makeNewTLBNode(page, index);
+                  
+                  makeNewTLBNode(page, getFrameNumFromPageTable(page));
                }
    
                for(PageAndFrameNumber pageAndFrame : pageTable) {
@@ -441,7 +438,7 @@
       public static void lruReplacement() throws IOException {
          while(scanner.hasNext()) {
             //System.out.println(scanner.nextInt());
-   
+            checkIfTLBIsCorrect();
             virtualAddress = scanner.nextInt();
             numAddress++;
             int offset = virtualAddress & offSetMask;
@@ -511,7 +508,7 @@
       }
       public static void optReplacement() throws IOException {
          memoryAddress = new ArrayList<Integer>();
-   
+         checkIfTLBIsCorrect();
          while(scanner.hasNext()) {
             memoryAddress.add(scanner.nextInt());
             numAddress++;
@@ -638,5 +635,18 @@
          tlb.remove(indexToRemove);
       }
    
+      public static void checkIfTLBIsCorrect() {
+         HashSet<Integer> set = new HashSet<Integer>();
+         
+         for(PageAndFrameNumber paf : tlb) {
+            set.add(paf.frameNum);
+         }
+         
+         if(tlb.size() != set.size()) {
+            System.exit(0);
+         
+         }
+         
+      }
    
    }
